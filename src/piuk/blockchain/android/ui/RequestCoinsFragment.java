@@ -19,7 +19,6 @@ package piuk.blockchain.android.ui;
 
 import java.io.DataOutputStream;
 import java.math.BigInteger;
-import java.net.HttpURLConnection;
 import java.net.URL;
 
 import org.apache.commons.io.IOUtils;
@@ -62,42 +61,6 @@ public final class RequestCoinsFragment extends Fragment {
 	private CurrencyAmountView amountView;
 	private Button generateSharedButton;
 
-	public static String postURL(String request, String urlParameters) throws Exception {
-
-		URL url = new URL(request);
-		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-		try { 
-			connection.setDoOutput(true);
-			connection.setDoInput(true);
-			connection.setInstanceFollowRedirects(false);
-			connection.setRequestMethod("POST");
-			connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-			connection.setRequestProperty("charset", "utf-8");
-			connection.setRequestProperty("Accept", "application/json");
-			connection.setRequestProperty("Content-Length", "" + Integer.toString(urlParameters.getBytes().length));
-			connection.setUseCaches (false);
-
-			connection.setConnectTimeout(30000);
-			connection.setReadTimeout(30000);
-
-			connection.connect();
-
-			DataOutputStream wr = new DataOutputStream(connection.getOutputStream ());
-			wr.writeBytes(urlParameters);
-			wr.flush();
-			wr.close();
-
-			connection.setInstanceFollowRedirects(false);
-
-			if (connection.getResponseCode() != 200)
-				throw new Exception(IOUtils.toString(connection.getErrorStream(), "UTF-8"));
-			else
-				return IOUtils.toString(connection.getInputStream(), "UTF-8");
-
-		} finally {
-			connection.disconnect();
-		}
-	}
 
 	@Override
 	public View onCreateView(final LayoutInflater inflater,

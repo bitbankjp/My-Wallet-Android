@@ -22,7 +22,6 @@ import org.spongycastle.util.encoders.Hex;
 import com.google.bitcoin.core.Base58;
 import com.google.bitcoin.core.ECKey;
 import com.google.bitcoin.core.NetworkParameters;
-import com.google.bitcoin.core.Utils;
 import com.google.bitcoin.core.Wallet;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
@@ -63,6 +62,7 @@ public class MyWallet {
 	public static final NetworkParameters params = NetworkParameters.prodNet();
 	public static byte[] extra_seed;
 
+	@SuppressWarnings("unchecked")
 	public MyWallet(String base64Payload, String password) throws Exception {
 		if (base64Payload == null || base64Payload.length() == 0 || password == null || password.length() == 0)
 			throw new Exception("Error Decrypting Wallet");
@@ -108,7 +108,9 @@ public class MyWallet {
 		root.put("keys", keys);
 		root.put("address_book", address_book);
 
-		addKey(generateECKey(), "New");
+		ECKey key = generateECKey();
+		
+		addKey(key, key.toAddress(NetworkParameters.prodNet()).toString(), "New");
 	}
 
 	@SuppressWarnings("unchecked")
@@ -451,29 +453,30 @@ public class MyWallet {
 		return true;
 	}
 
-	public boolean addWatchOnly(String address, String source) {
+	public boolean addWatchOnly(String address, String source) throws Exception {
 		Map<String, Object> map = new HashMap<String, Object>();
 
 		map.put("addr", address);
 		map.put("created_device_name", source);
 		map.put("created_device_version", "0");
 
+		if (findKey(address) != null)
+			throw new Exception("Address Already Exists In Wallet");
+		
 		getKeysMap().add(map);
 
 		return true;
 	}
 
 
-	protected String addKey(ECKey key, String label) throws Exception {
-		return addKey(key, label, System.getProperty("device_name"), System.getProperty("device_version"));
+	protected boolean addKey(ECKey key, String address, String label) throws Exception {
+		return addKey(key, address, label, System.getProperty("device_name"), System.getProperty("device_version"));
 	}
 
-	protected String addKey(ECKey key, String label, String device_name, String device_version) throws Exception {
+	protected boolean addKey(ECKey key, String address, String label, String device_name, String device_version) throws Exception {
 		Map<String, Object> map = new HashMap<String, Object>();
 
 		String base58Priv = new String(Base58.encode(key.getPrivKeyBytes()));
-
-		String address = key.toAddress(params).toString();
 
 		map.put("addr", address);
 
@@ -502,7 +505,7 @@ public class MyWallet {
 			map.put("created_device_version", device_version);
 
 		if (getKeysMap().add(map)) {
-			return address;
+			return true;
 		} else {
 			throw new Exception("Error inserting address into keymap");
 		}

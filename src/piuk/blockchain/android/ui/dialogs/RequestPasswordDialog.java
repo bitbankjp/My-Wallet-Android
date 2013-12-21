@@ -58,6 +58,7 @@ public final class RequestPasswordDialog extends DialogFragment {
 	public static final int PasswordTypeMain = 1;
 	public static final int PasswordTypeSecond = 2;
 	public static final int PasswordTypeMainNoValidate = 3;
+	public static final int PasswordTypePrivateKey = 4;
 
 	private int passwordType;
 
@@ -70,7 +71,7 @@ public final class RequestPasswordDialog extends DialogFragment {
 
 		return t;
 	}
-
+	
 	public static void hide() {
 		for (WeakReference<RequestPasswordDialog> fragmentRef : fragmentRefs) {
 			RequestPasswordDialog ref = fragmentRef.get();
@@ -103,6 +104,8 @@ public final class RequestPasswordDialog extends DialogFragment {
 
 		if (passwordType == PasswordTypeMain || passwordType == PasswordTypeMainNoValidate) 
 			newFragment.setCancelable(false);
+		else
+			newFragment.setCancelable(true);
 
 		newFragment.show(ft, FRAGMENT_TAG);
 
@@ -139,6 +142,8 @@ public final class RequestPasswordDialog extends DialogFragment {
 
 		if (passwordType == PasswordTypeSecond) 
 			dialog.setTitle(R.string.second_password_title);
+		else if (passwordType == PasswordTypePrivateKey)
+			dialog.setTitle(R.string.private_key_password_title);
 		else
 			dialog.setTitle(R.string.main_password_title);
 
@@ -154,6 +159,8 @@ public final class RequestPasswordDialog extends DialogFragment {
 
 		if (passwordType == PasswordTypeSecond)
 			titleTextView.setText(R.string.second_password_text);
+		else if (passwordType == PasswordTypePrivateKey)
+			titleTextView.setText(R.string.private_key_password_text);
 		else
 			titleTextView.setText(R.string.main_password_text);
 

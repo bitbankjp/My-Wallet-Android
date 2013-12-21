@@ -34,7 +34,10 @@ import piuk.MyRemoteWallet.SendProgress;
 import piuk.blockchain.android.Constants;
 import piuk.blockchain.android.R;
 import piuk.blockchain.android.WalletApplication;
+import piuk.blockchain.android.WalletApplication.AddAddressCallback;
+import piuk.blockchain.android.ui.AbstractWalletActivity.QrCodeDelagate;
 import piuk.blockchain.android.ui.SendCoinsFragment.FeePolicy;
+import piuk.blockchain.android.ui.dialogs.RequestPasswordDialog;
 import piuk.blockchain.android.ui.dialogs.WelcomeDialog;
 import piuk.blockchain.android.util.ActionBarFragment;
 import piuk.blockchain.android.util.ErrorReporter;
@@ -52,11 +55,13 @@ import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Pair;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.FrameLayout;
+import android.widget.Toast;
 
 public final class WalletActivity extends AbstractWalletActivity {
 	public static WalletActivity instance = null;
@@ -177,7 +182,7 @@ public final class WalletActivity extends AbstractWalletActivity {
 
 		registerReceiver(mHandleMessageReceiver, new IntentFilter(Constants.DISPLAY_MESSAGE_ACTION));
 	}
-	
+
 	@Override
 	protected void onDestroy() {
 		instance = null;
@@ -271,11 +276,21 @@ public final class WalletActivity extends AbstractWalletActivity {
 				}
 			});
 			return true;
+		case R.id.scan_watch_only:
+			if (application.getRemoteWallet() == null)
+				return false;
+
+			System.out.println("showQRReader()");
+			
+			showQRReader(new QrCodeDelagate() {
+				@Override
+				public void didReadQRCode(String data) throws Exception {
+					handleAddWatchOnly(data);
+				}
+			});
+			return true;
 		case R.id.backup_wallet:
 			showDialog(DIALOG_EXPORT_KEYS);
-			return true;
-		case R.id.buy_bitcoins:
-			openDeopositPage();
 			return true;
 		case R.id.menu_leave_p2p_mode:
 			application.leaveP2PMode();
@@ -329,154 +344,7 @@ public final class WalletActivity extends AbstractWalletActivity {
 
 		startActivity(browserIntent);
 	}
-
-	public void handleScanPrivateKey(String data) throws Exception {
-		String format = WalletUtils.detectPrivateKeyFormat(data);
-
-		final ECKey key = WalletUtils.parsePrivateKey(format, data);
-
-		final AlertDialog.Builder b = new AlertDialog.Builder(this);
-
-		b.setPositiveButton(android.R.string.yes, null);
-
-		b.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				dialog.dismiss();
-			}
-		});
-
-		b.setTitle("Scan Private Key");
-
-		b.setMessage("Fetching Balance. Please Wait");
-
-		final AlertDialog dialog = b.show();
-
-		dialog.getButton(Dialog.BUTTON1).setEnabled(false);					
-
-		new Thread() {
-			public void run() {
-				try {
-					BigInteger balance = MyRemoteWallet.getAddressBalance(key.toAddress(NetworkParameters.prodNet()).toString());
-
-					//Try compressed instead
-					if (balance.longValue() == 0) {
-						balance = MyRemoteWallet.getAddressBalance(key.toAddressCompressed(NetworkParameters.prodNet()).toString());
-					}
-
-					final BigInteger finalBalance = balance;
-
-					handler.post(new Runnable() {
-						@Override
-						public void run() {
-
-							if (finalBalance.longValue() == 0) {
-								dialog.setMessage("The Balance of this address is zero.");	
-								return;
-							}
-
-							dialog.getButton(Dialog.BUTTON1).setEnabled(true);
-
-							dialog.getButton(Dialog.BUTTON1).setOnClickListener(new OnClickListener() {
-								@Override
-								public void onClick(View v) {
-
-									try {
-										MyRemoteWallet wallet = new MyRemoteWallet();
-
-										wallet.addKey(key, null);
-
-										Address to = application.determineSelectedAddress();
-
-										if (to == null) {
-											handler.post(new Runnable() {
-												public void run() {
-													dialog.dismiss();
-												}
-											});
-
-											return;
-										}
-
-										BigInteger baseFee = wallet.getBaseFee();
-
-										wallet.sendCoinsAsync(to.toString(), finalBalance.subtract(baseFee), FeePolicy.FeeForce, baseFee, new SendProgress() {
-
-											@Override
-											public boolean onReady(
-													Transaction tx,
-													BigInteger fee,
-													FeePolicy feePolicy,
-													long priority) {
-												return true;
-											}
-
-											@Override
-											public void onSend(
-													Transaction tx,
-													String message) {
-												handler.post(new Runnable() {
-													public void run() {
-														dialog.dismiss();
-
-														longToast("Private Key Successfully Swept");
-													}
-												});
-											}
-
-											@Override
-											public ECKey onPrivateKeyMissing(String address) {
-												return null;
-											}
-
-											@Override
-											public void onError(final String message) {
-												handler.post(new Runnable() {
-													public void run() {
-														dialog.dismiss();
-
-														longToast(message);
-													}
-												});															
-											}
-
-											@Override
-											public void onProgress(String message) {}
-										});
-
-									} catch (final Exception e) {
-										e.getLocalizedMessage();
-
-										handler.post(new Runnable() {
-											public void run() {
-												dialog.dismiss();
-
-												longToast(e.getLocalizedMessage());
-											}
-										});
-									}
-								}
-							});
-
-							dialog.setMessage("The Balance of this address is "+WalletUtils.formatValue(finalBalance)+" BTC. Would you like to sweep it?");
-						}
-					});
-				} catch (final Exception e) {
-					e.printStackTrace();
-
-					handler.post(new Runnable() {
-						public void run() {
-							dialog.dismiss();
-
-							longToast(e.getLocalizedMessage());
-						}
-					});
-				}
-			}
-		}.start();
-
-	}
-
+	
 	private Dialog createExportKeysDialog()
 	{
 		final View view = getLayoutInflater().inflate(R.layout.export_keys_dialog, null);

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.bitcoin.core.ECKey;
+import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.Transaction;
 
 import piuk.MyRemoteWallet;
@@ -192,8 +193,10 @@ public class RekeyWalletDialog extends DialogFragment {
 					return;
 				}
 
+				ECKey key = wallet.generateECKey();
+				
 				//Generate a new address which we will sweep to
-				application.addKeyToWallet(wallet.generateECKey(), null, 0, new AddAddressCallback() {
+				application.addKeyToWallet(key, key.toAddress(NetworkParameters.prodNet()).toString(), null, 0, new AddAddressCallback() {
 					public void onSavedAddress(final String new_address) {
 						
 						BigInteger balanceOfInsecure = BigInteger.ZERO;

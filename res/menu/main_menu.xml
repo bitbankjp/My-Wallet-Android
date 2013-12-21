@@ -17,14 +17,17 @@
         android:id="@+id/scan_private_key"
         android:showAsAction="never"
         android:title="@string/menu_scan_private_key"/>
+    
+    <item
+        android:id="@+id/scan_watch_only"
+        android:showAsAction="never"
+        android:title="@string/menu_addresses_scan_watch_only"/>
+    
     <item
         android:id="@+id/backup_wallet"
         android:showAsAction="never"
         android:title="@string/wallet_options_backup"/>
-    <item
-        android:id="@+id/buy_bitcoins"
-        android:showAsAction="never"
-        android:title="@string/buy_bitcoins"/>
+    
     <item
         android:id="@+id/menu_leave_p2p_mode"
         android:showAsAction="never"

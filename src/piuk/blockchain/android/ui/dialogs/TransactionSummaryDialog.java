@@ -19,15 +19,12 @@ package piuk.blockchain.android.ui.dialogs;
 
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.apache.commons.io.IOUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.spongycastle.util.encoders.Hex;
@@ -41,7 +38,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.AlertDialog.Builder;
-import android.content.ContentResolver;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -58,7 +54,6 @@ import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -66,11 +61,9 @@ import android.widget.TextView;
 
 import piuk.MyRemoteWallet;
 import piuk.MyTransaction;
-import piuk.MyTransactionInput;
 import piuk.blockchain.android.Constants;
 import piuk.blockchain.android.R;
 import piuk.blockchain.android.WalletApplication;
-import piuk.blockchain.android.ui.SuccessCallback;
 import piuk.blockchain.android.util.WalletUtils;
 
 /**
@@ -146,39 +139,10 @@ public final class TransactionSummaryDialog extends DialogFragment
 		return fragment;
 	}
 
-	private static String fetchURL(String URL) throws Exception {
-		URL url = new URL(URL);
-
-		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-		try {
-			connection.setRequestProperty("Accept", "application/json");
-			connection.setRequestProperty("charset", "utf-8");
-			connection.setRequestMethod("GET");
-
-			connection.setConnectTimeout(30000);
-			connection.setReadTimeout(30000);
-
-			connection.setInstanceFollowRedirects(false);
-
-			connection.connect();
-
-			if (connection.getResponseCode() == 200)
-				return IOUtils.toString(connection.getInputStream(), "UTF-8");
-			else if (connection.getResponseCode() == 500 && (connection.getContentType() == null || connection.getContentType().equals("text/plain")))
-				throw new Exception("Error From Server: " +  IOUtils.toString(connection.getErrorStream(), "UTF-8"));
-			else
-				throw new Exception("Unknown response from server");
-
-		} finally {
-			connection.disconnect();
-		}
-	}
-
 	public static JSONObject getTransactionSummary(long txIndex, String guid, long result) throws Exception {
 		String url = WebROOT + "/"+ txIndex + "?guid="+guid+"&result="+result+"&format=json";
 
-		String response = fetchURL(url);	
+		String response = WalletUtils.getURL(url);	
 
 		return (JSONObject) new JSONParser().parse(response);
 	}
@@ -201,6 +165,10 @@ public final class TransactionSummaryDialog extends DialogFragment
 		try {
 			final MyRemoteWallet wallet = application.getRemoteWallet();
 
+			if (wallet == null) {
+				return null;
+			}
+			
 			BigInteger totalOutputValue = BigInteger.ZERO;
 			for (TransactionOutput output : tx.getOutputs()) {
 				totalOutputValue = totalOutputValue.add(output.getValue());

@@ -18,7 +18,6 @@ application.getRemoteWallet() * Copyright 2011-2012 the original author or autho
 package piuk.blockchain.android.service;
 
 import java.math.BigInteger;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
@@ -33,11 +32,9 @@ import piuk.MyTransaction;
 import piuk.MyTransactionConfidence;
 import piuk.MyTransactionInput;
 import piuk.MyTransactionOutput;
-import piuk.EventListeners.EventListener;
 import piuk.blockchain.android.Constants;
 import piuk.blockchain.android.WalletApplication;
 
-import com.codebutler.android_websockets.WebSocketClient;
 import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.TransactionInput;
 import com.google.bitcoin.core.TransactionOutput;

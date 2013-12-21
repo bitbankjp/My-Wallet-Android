@@ -89,6 +89,7 @@ public class WalletApplication extends Application {
 	public Wallet bitcoinjWallet;
 	public Pair<Block, Integer> blockExplorerBlockPair;
 	public long earliestKeyTime;
+	private volatile boolean checkWalletStatusScheduled = false;
 
 	private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver()
 	{
@@ -156,14 +157,14 @@ public class WalletApplication extends Application {
 	}
 
 	public Integer getLatestHeightFromBlockExplorer() throws Exception {
-		return Integer.valueOf(WalletUtils.fetchURL("http://blockexplorer.com/q/getblockcount"));
+		return Integer.valueOf(WalletUtils.getURL("http://blockexplorer.com/q/getblockcount"));
 	}
 
 	public Pair<Block, Integer> getLatestBlockHeaderFromBlockExplorer(Integer blockHeight) throws Exception {
 
-		String hash = WalletUtils.fetchURL("http://blockexplorer.com/q/getblockhash/"+blockHeight);
+		String hash = WalletUtils.getURL("http://blockexplorer.com/q/getblockhash/"+blockHeight);
 
-		JSONObject obj = (JSONObject) new JSONParser().parse(WalletUtils.fetchURL("http://blockexplorer.com/rawblock/"+hash));
+		JSONObject obj = (JSONObject) new JSONParser().parse(WalletUtils.getURL("http://blockexplorer.com/rawblock/"+hash));
 
 		Block block = new Block(Constants.NETWORK_PARAMETERS);
 
@@ -193,7 +194,7 @@ public class WalletApplication extends Application {
 
 				String url = "http://blockexplorer.com/q/addressfirstseen/" + key.toAddress(Constants.NETWORK_PARAMETERS).toString();
 
-				String response = WalletUtils.fetchURL(url);
+				String response = WalletUtils.getURL(url);
 
 				Date date = null;
 				if (response.contains("Never")) {
@@ -416,7 +417,6 @@ public class WalletApplication extends Application {
 				timer = new Timer(); 
 
 				timer.schedule(new TimerTask() {
-
 					@Override
 					public void run() {
 						handler.post(new Runnable() {
@@ -441,7 +441,6 @@ public class WalletApplication extends Application {
 				}, 5000);
 
 				timer.schedule(new TimerTask() {
-
 					@Override
 					public void run() {
 						handler.post(new Runnable() {
@@ -457,7 +456,7 @@ public class WalletApplication extends Application {
 							}
 						});
 					}
-				}, 20000);
+				}, 120000);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -482,10 +481,23 @@ public class WalletApplication extends Application {
 			}	
 		} 
 
-
 		if (blockchainWallet != null && decryptionErrors == 0 && (passwordSaved || didEncounterFatalPINServerError)) {
 			if (!blockchainWallet.isUptoDate(Constants.MultiAddrTimeThreshold)) {
-				checkIfWalletHasUpdatedAndFetchTransactions(blockchainWallet.getTemporyPassword());
+				if (checkWalletStatusScheduled) {
+					return;
+				}
+				checkWalletStatusScheduled = true;
+
+				handler.postDelayed(new Runnable() {
+					@Override
+					public void run() {
+						if (blockchainWallet != null) {
+							checkIfWalletHasUpdatedAndFetchTransactions(blockchainWallet.getTemporyPassword());
+						}
+
+						checkWalletStatusScheduled = false;
+					} 
+				}, 2500);
 			} 
 		} else if (blockchainWallet == null || decryptionErrors > 0 || !passwordSaved) {
 
@@ -754,7 +766,7 @@ public class WalletApplication extends Application {
 	public synchronized void checkIfWalletHasUpdatedAndFetchTransactions(final String password, final SuccessCallback callbackFinal) {
 		checkIfWalletHasUpdated(password, true, callbackFinal);
 	}
-	
+
 	public synchronized void checkIfWalletHasUpdated(final String password, boolean fetchTransactions, final SuccessCallback callbackFinal) {
 		if (getGUID() == null || getSharedKey() == null) {
 			if (callbackFinal != null) callbackFinal.onFail();
@@ -784,18 +796,22 @@ public class WalletApplication extends Application {
 
 		new Thread(new Runnable() {
 			public void run() {
-				String payload = null;
+				JSONObject walletPayloadObj = null;
 				SuccessCallback callback = callbackFinal;
 
 				String localWallet = null;
 
 				try {
 					if (blockchainWallet == null) {
+						System.out.println("Read Local Wallet");
+
 						localWallet = readLocalWallet();
 
 						//First try and restore the local cache
 						if (decryptLocalWallet(localWallet, password)) {	
 							if (callback != null)  {
+								readLocalMultiAddr();  
+
 								handler.post(new Runnable() {
 									public void run() {
 										callbackFinal.onSuccess();
@@ -804,19 +820,12 @@ public class WalletApplication extends Application {
 
 								callback = null;
 							}
-
-							readLocalMultiAddr();  
-
-							Thread.sleep(1000);
-
-							checkIfWalletHasUpdated(password, guid, sharedKey, fetchTransactions, null);
-
 							return;
 						} else {
-							payload = MyRemoteWallet.getWalletPayload(guid, sharedKey);	
+							walletPayloadObj = MyRemoteWallet.getWalletPayload(guid, sharedKey);	
 						}
 					} else {
-						payload = MyRemoteWallet.getWalletPayload(guid, sharedKey, blockchainWallet.getChecksum());		
+						walletPayloadObj = MyRemoteWallet.getWalletPayload(guid, sharedKey, blockchainWallet.getChecksum());		
 					}
 
 				} catch (NotModfiedException e) {
@@ -841,7 +850,7 @@ public class WalletApplication extends Application {
 					e.printStackTrace();
 				}
 
-				if (payload == null) {
+				if (walletPayloadObj == null) {
 					if (callback != null)  {
 						handler.post(new Runnable() {
 							public void run() {
@@ -860,11 +869,11 @@ public class WalletApplication extends Application {
 
 				try {
 					if (blockchainWallet == null) {
-						blockchainWallet = new MyRemoteWallet(payload, password);
+						blockchainWallet = new MyRemoteWallet(walletPayloadObj, password);
 					} else {						
 						blockchainWallet.setTemporyPassword(password);
-						
-						blockchainWallet.setPayload(payload);
+
+						blockchainWallet.setPayload(walletPayloadObj);
 					}
 
 					decryptionErrors = 0;
@@ -1022,8 +1031,8 @@ public class WalletApplication extends Application {
 					}
 
 					//After multi addr the currency is set
-					if (blockchainWallet.getCurrencyCode() != null)
-						setCurrency(blockchainWallet.getCurrencyCode());
+					if (blockchainWallet.getLocalCurrencyCode() != null)
+						setCurrency(blockchainWallet.getLocalCurrencyCode());
 
 					handler.post(new Runnable() {
 						public void run() {
@@ -1090,7 +1099,7 @@ public class WalletApplication extends Application {
 		}.start();
 	}
 
-	public void addKeyToWallet(final ECKey key, final String label, final int tag,
+	public void addKeyToWallet(final ECKey key, final String address, final String label, final int tag,
 			final AddAddressCallback callback) {
 
 		if (blockchainWallet == null) {
@@ -1104,12 +1113,12 @@ public class WalletApplication extends Application {
 		}
 
 		try {
-			final String address = blockchainWallet.addKey(key, label);
-			if (address != null) {
+			final boolean success = blockchainWallet.addKey(key, address, label);
+			if (success) {
 				if (tag != 0) {
 					blockchainWallet.setTag(address, tag);
 				}
-	
+
 				localSaveWallet();
 
 				saveWallet(new SuccessCallback() {
@@ -1184,7 +1193,7 @@ public class WalletApplication extends Application {
 
 								EventListeners.invokeWalletDidChange();
 							} catch (Exception e) {
-								e.printStackTrace();
+								e.printStackTrace(); 
 
 								writeException(e);
 
@@ -1251,8 +1260,8 @@ public class WalletApplication extends Application {
 
 			blockchainWallet.parseMultiAddr(multiAddr, false);
 
-			if (blockchainWallet.getCurrencyCode() != null)
-				setCurrency(blockchainWallet.getCurrencyCode());
+			if (blockchainWallet.getLocalCurrencyCode() != null)
+				setCurrency(blockchainWallet.getLocalCurrencyCode());
 
 			return true;
 

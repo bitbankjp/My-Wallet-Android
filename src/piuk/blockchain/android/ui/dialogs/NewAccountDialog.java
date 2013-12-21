@@ -23,6 +23,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.IOUtils;
 
@@ -33,6 +34,8 @@ import piuk.blockchain.android.WalletApplication;
 import piuk.blockchain.android.ui.AbstractWalletActivity;
 import piuk.blockchain.android.ui.PinEntryActivity;
 import piuk.blockchain.android.ui.SuccessCallback;
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
@@ -51,6 +54,7 @@ import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.util.Patterns;
 import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -96,40 +100,6 @@ public final class NewAccountDialog extends DialogFragment {
 				}
 			}
 		}
-	}
-
-	public void refreshCaptcha(View view) {
-		final ImageView captchaImage = (ImageView) view
-				.findViewById(R.id.captcha_image);
-
-		new Thread(new Runnable() {
-			public void run() {
-				try {
-					final Bitmap b = loadBitmap("https://"+Constants.BLOCKCHAIN_DOMAIN+"/kaptcha.jpg");
-					captchaImage.post(new Runnable() {
-						public void run() {
-							captchaImage.setImageBitmap(b);
-						}
-					});
-				} catch (Exception e) {
-
-					captchaImage.post(new Runnable() {
-						public void run() {
-							Activity activity = getActivity();
-
-							if (activity == null)
-								return;
-
-							Toast.makeText(activity,
-									R.string.toast_error_downloading_captcha,
-									Toast.LENGTH_LONG).show();
-						}
-					});
-
-					e.printStackTrace();
-				}
-			}
-		}).start();
 	}
 
 	public static NewAccountDialog show(final FragmentManager fm, WalletApplication application) {
@@ -185,9 +155,16 @@ public final class NewAccountDialog extends DialogFragment {
 		final Button createButton = (Button) view.findViewById(R.id.create_button);
 		final TextView passwordField = (TextView) view.findViewById(R.id.password);
 		final TextView passwordField2 = (TextView) view.findViewById(R.id.password2);
-		final TextView captcha = (TextView) view.findViewById(R.id.captcha);
+		final TextView emailField = (TextView) view.findViewById(R.id.email);
 
-		refreshCaptcha(view);
+		final Pattern emailPattern = Patterns.EMAIL_ADDRESS; // API level 8+
+		Account[] accounts = AccountManager.get(getActivity().getApplicationContext()).getAccounts();
+		for (Account account : accounts) {
+			if (emailPattern.matcher(account.name).matches()) {
+				emailField.setText(account.name);
+				break;
+			}
+		}
 
 		createButton.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
@@ -210,9 +187,9 @@ public final class NewAccountDialog extends DialogFragment {
 					return;
 				}
 
-				if (captcha.getText().length() == 0) {
+				if (emailField.getText().length() > 0 && !emailPattern.matcher(emailField.getText()).matches()) {
 					Toast.makeText(application,
-							R.string.new_account_no_kaptcha_error,
+							R.string.new_account_password_invalid_email,
 							Toast.LENGTH_LONG).show();
 					return;
 				}
@@ -234,14 +211,15 @@ public final class NewAccountDialog extends DialogFragment {
 							} catch (Exception e1) {
 								throw new Exception("Error Generating Wallet");
 							}
-							
+
 							final String guid = application.getRemoteWallet().getGUID();
 							final String sharedKey = application.getRemoteWallet().getSharedKey();
 							final String password = passwordField.getText().toString();
-							
+							final String email = emailField.getText().toString();
+
 							application.getRemoteWallet().setTemporyPassword(password);
 
-							if (!application.getRemoteWallet().remoteSave(captcha.getText().toString())) {
+							if (!application.getRemoteWallet().remoteSave(email)) {
 								throw new Exception("Unknown Error Inserting wallet");
 							}
 
@@ -313,10 +291,6 @@ public final class NewAccountDialog extends DialogFragment {
 							handler.post(new Runnable() {
 								public void run() {
 									progressDialog.dismiss();
-
-									refreshCaptcha(view);
-
-									captcha.setText(null);
 
 									Toast.makeText(activity.getApplication(),
 											e.getLocalizedMessage(),

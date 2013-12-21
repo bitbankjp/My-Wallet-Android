@@ -785,8 +785,7 @@ public class Transaction extends ChildMessage implements Serializable {
      * @param anyoneCanPay should be false.
      * @throws ScriptException if connectedScript is invalid
      */
-    public synchronized Sha256Hash hashTransactionForSignature(int inputIndex, byte[] connectedScript,
-                                                               SigHash type, boolean anyoneCanPay) throws ScriptException {
+    public synchronized Sha256Hash hashTransactionForSignature(int inputIndex, byte[] connectedScript, SigHash type, boolean anyoneCanPay) throws ScriptException {
         return hashTransactionForSignature(inputIndex, connectedScript, (byte)((type.ordinal() + 1) | (anyoneCanPay ? 0x80 : 0x00)));
     }
     

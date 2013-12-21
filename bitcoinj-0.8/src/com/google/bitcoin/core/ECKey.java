@@ -35,6 +35,7 @@ import org.spongycastle.util.encoders.Base64;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.Boolean;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.security.SecureRandom;
@@ -456,7 +457,7 @@ public class ECKey implements Serializable {
      * @param signatureBase64 The Bitcoin-format message signature in base64
      * @throws SignatureException If the public key could not be recovered or if there was a signature format error.
      */
-    public static ECKey signedMessageToKey(String message, String signatureBase64) throws SignatureException {
+    public static Pair<ECKey, Boolean> signedMessageToKey(String message, String signatureBase64) throws SignatureException {
         byte[] signatureEncoded;
         try {
             signatureEncoded = Base64.decode(signatureBase64);
@@ -488,7 +489,7 @@ public class ECKey implements Serializable {
         ECKey key = ECKey.recoverFromSignature(recId, sig, messageHash, compressed);
         if (key == null)
             throw new SignatureException("Could not recover public key from signature");
-        return key;
+        return new Pair<>(key, compressed);
     }
 
     /**

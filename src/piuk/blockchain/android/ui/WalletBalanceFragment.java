@@ -203,10 +203,10 @@ LoaderManager.LoaderCallbacks<Cursor> {
 			} else {
 				boolean displayLocal = application.getShouldDisplayLocalCurrency();
 
-				if (displayLocal && application.getRemoteWallet().getCurrencyConversion() > 0 && application.getRemoteWallet().getCurrencyCode() != null) {
-					viewBalance.setCurrencyCode(application.getRemoteWallet().getCurrencyCode());
+				if (displayLocal && application.getRemoteWallet().getLocalCurrencyConversion() > 0 && application.getRemoteWallet().getLocalCurrencyCode() != null) {
+					viewBalance.setCurrencyCode(application.getRemoteWallet().getLocalCurrencyCode());
 
-					viewBalance.setAmount(application.getRemoteWallet().getBalance().doubleValue() / application.getRemoteWallet().getCurrencyConversion());
+					viewBalance.setAmount(application.getRemoteWallet().getBalance().doubleValue() / application.getRemoteWallet().getLocalCurrencyConversion());
 				} else {
 					viewBalance.setCurrencyCode(Constants.CURRENCY_CODE_BITCOIN);
 

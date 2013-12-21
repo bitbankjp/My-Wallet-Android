@@ -17,10 +17,12 @@
 
 package piuk.blockchain.android.ui;
 
+import java.math.BigInteger;
 import java.util.Locale;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.AlertDialog.Builder;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -32,21 +34,31 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
 import android.text.ClipboardManager;
+import android.util.Pair;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.TextView;
 import android.widget.Toast;
 import piuk.EventListeners;
 import piuk.MyRemoteWallet;
+import piuk.MyRemoteWallet.SendProgress;
 import piuk.blockchain.android.R;
 import piuk.blockchain.android.Constants;
 import piuk.blockchain.android.WalletApplication;
+import piuk.blockchain.android.WalletApplication.AddAddressCallback;
 import piuk.blockchain.android.ui.SendCoinsFragment.FeePolicy;
 import piuk.blockchain.android.ui.dialogs.RequestPasswordDialog;
 import piuk.blockchain.android.util.ActionBarFragment;
+import piuk.blockchain.android.util.WalletUtils;
 
 import com.dm.zbar.android.scanner.ZBarConstants;
 import com.dm.zbar.android.scanner.ZBarScannerActivity;
 import com.google.android.gcm.GCMRegistrar;
+import com.google.bitcoin.core.Address;
+import com.google.bitcoin.core.ECKey;
+import com.google.bitcoin.core.NetworkParameters;
+import com.google.bitcoin.core.Transaction;
+import com.google.bitcoin.uri.BitcoinURI;
 
 /**
  * @author Andreas Schildbach
@@ -62,26 +74,27 @@ public abstract class AbstractWalletActivity extends FragmentActivity {
 	private static final int ZBAR_QR_SCANNER_REQUEST = 1;
 	protected boolean dontCheckStatus = false;
 
+
 	public abstract class QrCodeDelagate implements ActivityDelegate {
-		
+
 		public abstract void didReadQRCode(String data) throws Exception;
-		
+
 		@Override
 		public void onActivityResult(final int requestCode, final int resultCode,
 				final Intent intent) {
-			
-	        //Zxing
+
+			//Zxing
 			if (resultCode == RESULT_OK) {
 				final String raw_code = intent.getStringExtra("SCAN_RESULT");
 
 				try {
 					if (raw_code == null || raw_code.length() == 0)
 						throw new Exception("Null result returned");
-					
+
 					didReadQRCode(raw_code);
 				} catch (Exception e) {
 					e.printStackTrace();
-					
+
 					longToast(R.string.unknown_error);
 				}
 			}
@@ -101,19 +114,19 @@ public abstract class AbstractWalletActivity extends FragmentActivity {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public static interface ActivityDelegate {
 		public void onActivityResult(final int requestCode, final int resultCode,
 				final Intent intent);
 	}
-	
+
 	@Override
 	public void onActivityResult(final int requestCode, final int resultCode,
 			final Intent intent) {
-		
+
 		if (activityDelegate != null)
 			activityDelegate.onActivityResult(requestCode, resultCode, intent);
-		
+
 	}
 
 	public void showQRReader(ActivityDelegate activityDelegate) {
@@ -265,8 +278,9 @@ public abstract class AbstractWalletActivity extends FragmentActivity {
 
 		EventListeners.addEventListener(eventListener);
 
-		if (!dontCheckStatus)
+		if (!dontCheckStatus) {
 			application.checkWalletStatus(self);
+		}
 
 		application.connect();
 	}
@@ -403,4 +417,302 @@ public abstract class AbstractWalletActivity extends FragmentActivity {
 			startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(String
 					.format(Constants.WEBMARKET_APP_URL, packageName))));
 	}
+
+	private void handleScanPrivateKeyPair(final Pair<ECKey, Boolean> pair) throws Exception {
+
+		final ECKey key = pair.first;
+		final Boolean compressed = pair.second;
+
+		final AlertDialog.Builder b = new AlertDialog.Builder(this);
+
+		b.setPositiveButton(R.string.sweep_text, null);
+
+		b.setNeutralButton(R.string.import_text, null);
+
+		b.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				dialog.dismiss();
+			}
+		});
+
+		b.setTitle("Scan Private Key");
+
+		b.setMessage("Fetching Balance. Please Wait");
+
+		final AlertDialog dialog = b.show();
+
+		dialog.getButton(Dialog.BUTTON1).setEnabled(false);					
+
+		new Thread() {
+			public void run() {
+				try {
+					final String address;
+					if (compressed) {
+						address = key.toAddressCompressed(NetworkParameters.prodNet()).toString();
+					} else {
+						address = key.toAddress(NetworkParameters.prodNet()).toString();
+					}
+
+					System.out.println("Scanned PK Address " + address);
+
+					BigInteger balance = MyRemoteWallet.getAddressBalance(address);
+
+					final BigInteger finalBalance = balance;
+
+					handler.post(new Runnable() {
+						@Override
+						public void run() {
+							final MyRemoteWallet remoteWallet = application.getRemoteWallet();
+
+							if (remoteWallet == null)
+								return;
+
+							dialog.getButton(Dialog.BUTTON3).setEnabled(true);
+
+							if (finalBalance.longValue() == 0) {
+								dialog.setMessage("The Balance of address " + address + " is zero.");	
+							} else {
+								dialog.getButton(Dialog.BUTTON1).setEnabled(true);
+								dialog.setMessage("The Balance of "+address+" is "+WalletUtils.formatValue(finalBalance)+" BTC. Would you like to sweep it?");
+							}
+
+							dialog.getButton(Dialog.BUTTON3).setOnClickListener(new OnClickListener() {
+								@Override
+								public void onClick(View v) {
+
+									if (remoteWallet.isDoubleEncrypted() == false) {
+										reallyAddKey(dialog, key);
+									} else {
+										if (remoteWallet.temporySecondPassword == null) {
+											RequestPasswordDialog.show(
+													getSupportFragmentManager(),
+													new SuccessCallback() {
+
+														public void onSuccess() {
+															reallyAddKey(dialog, key);														}
+
+														public void onFail() {
+														}
+													}, RequestPasswordDialog.PasswordTypeSecond);
+										} else {
+											reallyAddKey(dialog, key);
+										}
+									}
+								}
+							});
+
+							dialog.getButton(Dialog.BUTTON1).setOnClickListener(new OnClickListener() {
+								@Override
+								public void onClick(View v) {
+
+									try {
+										MyRemoteWallet wallet = new MyRemoteWallet();
+
+										wallet.addKey(key, address, null);
+
+										Address to = application.determineSelectedAddress();
+
+										if (to == null) {
+											handler.post(new Runnable() {
+												public void run() {
+													dialog.dismiss();
+												}
+											});
+
+											return;
+										}
+
+										BigInteger baseFee = wallet.getBaseFee();
+
+										wallet.sendCoinsAsync(to.toString(), finalBalance.subtract(baseFee), FeePolicy.FeeForce, baseFee, new SendProgress() {
+
+											@Override
+											public boolean onReady(
+													Transaction tx,
+													BigInteger fee,
+													FeePolicy feePolicy,
+													long priority) {
+												return true;
+											}
+
+											@Override
+											public void onSend(
+													Transaction tx,
+													String message) {
+												handler.post(new Runnable() {
+													public void run() {
+														dialog.dismiss();
+
+														longToast("Private Key Successfully Swept");
+													}
+												});
+											}
+
+											@Override
+											public ECKey onPrivateKeyMissing(String address) {
+												return null;
+											}
+
+											@Override
+											public void onError(final String message) {
+												handler.post(new Runnable() {
+													public void run() {
+														dialog.dismiss();
+
+														longToast(message);
+													}
+												});															
+											}
+
+											@Override
+											public void onProgress(String message) {}
+										});
+
+									} catch (final Exception e) {
+										e.getLocalizedMessage();
+
+										handler.post(new Runnable() {
+											public void run() {
+												dialog.dismiss();
+
+												longToast(e.getLocalizedMessage());
+											}
+										});
+									}
+								}
+							});
+						}
+					});
+				} catch (final Exception e) {
+					e.printStackTrace();
+
+					handler.post(new Runnable() {
+						public void run() {
+							dialog.dismiss();
+
+							longToast(e.getLocalizedMessage());
+						}
+					});
+				}
+			}
+		}.start();
+	}
+
+	private void reallyAddKey(final Dialog dialog, final ECKey key) {
+		application.addKeyToWallet(key, key.toAddress(NetworkParameters.prodNet()).toString(), null, 0,
+				new AddAddressCallback() {
+
+			public void onSavedAddress(String address) {
+				longToast("Private Key Successfully Imported");
+
+				dialog.dismiss();
+			}
+
+			public void onError(String reason) {
+				Toast.makeText(self, reason, Toast.LENGTH_LONG).show();
+
+				dialog.dismiss();
+			}
+		});
+	}
+
+
+	public void handleScanPrivateKey(final String data) throws Exception {
+
+		handler.postDelayed(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					final String format = WalletUtils.detectPrivateKeyFormat(data);
+
+					System.out.println("Scanned Private Key Format " + format);
+
+					if (format.equals("bip38")) {
+						RequestPasswordDialog.show(getSupportFragmentManager(), new SuccessCallback() {
+
+							public void onSuccess() {
+								String password = RequestPasswordDialog.getPasswordResult();
+
+								try {
+									handleScanPrivateKeyPair(WalletUtils.parsePrivateKey(format, data, password));
+								} catch (Exception e) {
+									longToast(e.getLocalizedMessage());
+								}
+							}
+
+							public void onFail() {
+
+							}
+						}, RequestPasswordDialog.PasswordTypePrivateKey);
+					} else {
+						handleScanPrivateKeyPair(WalletUtils.parsePrivateKey(format, data, null));
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}, 100);
+
+	}
+
+	public void handleAddWatchOnly(String data) throws Exception {
+
+		String address;
+		try {
+			address = new Address(Constants.NETWORK_PARAMETERS, data).toString();
+		} catch (Exception e) {
+			try {
+				BitcoinURI uri = new BitcoinURI(data);
+
+				address = uri.getAddress().toString();
+			} catch (Exception e1) {
+				longToast(R.string.send_coins_fragment_receiving_address_error);
+
+				return;
+			}
+		}
+
+		final AlertDialog.Builder b = new AlertDialog.Builder(this);
+
+		final String finalAddress = address;
+		b.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				if (application.getRemoteWallet() == null)
+					return;
+
+				try {
+					application.getRemoteWallet().addWatchOnly(finalAddress, "android_watch_only");
+					
+					application.saveWallet(new SuccessCallback() {
+						@Override
+						public void onSuccess() {
+							EditAddressBookEntryFragment.edit(getSupportFragmentManager(), finalAddress);
+						}
+
+						@Override
+						public void onFail() {
+						}
+					});
+				} catch (Exception e) {					
+					longToast(e.getLocalizedMessage());
+				}
+			}
+		});
+
+		b.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				dialog.dismiss();
+			}
+		});
+
+		b.setTitle("Watch Only Address");
+
+		b.setMessage("Do you wish to add the Watch Only bitcoin address " + address + " to your wallet? \n\nYou will not be able to spend any funds in this address unless you have the private key stored elsewhere. You should never add a Watch Only address that you do not have the private key for.");
+
+		b.show();				
+	}
+
 }

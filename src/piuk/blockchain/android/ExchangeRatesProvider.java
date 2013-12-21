@@ -17,17 +17,16 @@
 
 package piuk.blockchain.android;
 
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.io.IOUtils;
+
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
+import piuk.blockchain.android.util.WalletUtils;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.database.Cursor;
@@ -111,35 +110,6 @@ public class ExchangeRatesProvider extends ContentProvider {
 		throw new UnsupportedOperationException();
 	}
 
-	private static String fetchURL(String URL) throws Exception {
-		URL url = new URL(URL);
-
-		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-		try {
-			connection.setRequestProperty("Accept", "application/json");
-			connection.setRequestProperty("charset", "utf-8");
-			connection.setRequestMethod("GET");
-
-			connection.setConnectTimeout(30000);
-			connection.setReadTimeout(30000);
-
-			connection.setInstanceFollowRedirects(false);
-
-			connection.connect();
-
-			if (connection.getResponseCode() == 200)
-				return IOUtils.toString(connection.getInputStream(), "UTF-8");
-			else if (connection.getResponseCode() == 500 && (connection.getContentType() == null || connection.getContentType().equals("text/plain")))
-				throw new Exception("Error From Server: " +  IOUtils.toString(connection.getErrorStream(), "UTF-8"));
-			else
-				throw new Exception("Unknown response from server");
-
-		} finally {
-			connection.disconnect();
-		}
-	}
-
 	public static class Rate {
 		public String symbol;
 		public double _15m;
@@ -148,7 +118,7 @@ public class ExchangeRatesProvider extends ContentProvider {
 
 	private static Map<String, Rate> getExchangeRates() {
 		try {
-			String response = fetchURL("http://"+Constants.BLOCKCHAIN_DOMAIN+"/ticker");
+			String response = WalletUtils.getURL("http://"+Constants.BLOCKCHAIN_DOMAIN+"/ticker");
 
 			final Map<String, Rate> rates = new LinkedHashMap<String, Rate>();
 

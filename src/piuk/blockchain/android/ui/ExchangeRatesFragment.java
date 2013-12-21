@@ -182,11 +182,15 @@ LoaderManager.LoaderCallbacks<Cursor> {
 			walletBalanceFragment.updateView();
 		}
 
+		System.out.println("Set Currency Code " + currencyCode);
+		
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
 				try {
-					application.getRemoteWallet().updateRemoteCurrency(currencyCode);
+					application.setShouldDisplayLocalCurrency(true);
+					
+					application.getRemoteWallet().updateRemoteLocalCurrency(currencyCode);
 
 					application.doMultiAddr(true);
 				} catch (Exception e) {

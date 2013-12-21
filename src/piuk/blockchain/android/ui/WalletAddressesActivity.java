@@ -40,6 +40,7 @@ import android.widget.Toast;
 import com.google.bitcoin.core.Address;
 import com.google.bitcoin.core.AddressFormatException;
 import com.google.bitcoin.core.ECKey;
+import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.WrongNetworkException;
 import com.google.bitcoin.uri.BitcoinURIParseException;
 
@@ -50,6 +51,7 @@ import piuk.MyWallet;
 import piuk.blockchain.android.R;
 import piuk.blockchain.android.Constants;
 import piuk.blockchain.android.WalletApplication.AddAddressCallback;
+import piuk.blockchain.android.ui.AbstractWalletActivity.QrCodeDelagate;
 import piuk.blockchain.android.ui.dialogs.RequestPasswordDialog;
 import piuk.blockchain.android.util.ActionBarFragment;
 import piuk.blockchain.android.util.ViewPagerTabs;
@@ -114,53 +116,6 @@ public final class WalletAddressesActivity extends AbstractWalletActivity {
 		return true;
 	}
 
-	public void handleAddWatchOnly(String data) throws Exception {
-		
-		try {
-			new Address(Constants.NETWORK_PARAMETERS, data);
-		} catch (Exception e) {
-			longToast(R.string.send_coins_fragment_receiving_address_error);
-			return;
-		}
-
-		final String address = data;
-		
-		final AlertDialog.Builder b = new AlertDialog.Builder(this);
-
-		b.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				if (application.getRemoteWallet() == null)
-					return;
-
-				application.getRemoteWallet().addWatchOnly(address, "android_watch_only");
-				
-				application.saveWallet(new SuccessCallback() {
-					@Override
-					public void onSuccess() {
-						EditAddressBookEntryFragment.edit(getSupportFragmentManager(), address);
-					}
-
-					@Override
-					public void onFail() {
-					}
-				});
-			}
-		});
-
-		b.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				dialog.dismiss();
-			}
-		});
-
-		b.setTitle("Watch Only Address");
-
-		b.setMessage("Do you wish to add the Watch Only bitcoin address " + data + " to your wallet? \n\nYou will not be able to spend any funds in this address unless you have the private key stored elsewhere. You should never add a Watch Only address that you do not have the private key for.");
-
-		b.show();				
-	}
 
 	@Override
 	public boolean onOptionsItemSelected(final MenuItem item) {
@@ -172,7 +127,7 @@ public final class WalletAddressesActivity extends AbstractWalletActivity {
 			handlePasteClipboard();
 			return true;
 		case R.id.addresses_menu_scan_uri:
-			
+
 			showQRReader(new QrCodeDelagate() {
 				@Override
 				public void didReadQRCode(String contents) throws Exception {
@@ -199,14 +154,14 @@ public final class WalletAddressesActivity extends AbstractWalletActivity {
 					}
 				}
 			});
-			
+
 			return true;
 		case R.id.addresses_menu_scan_watch_only:
 			if (application.getRemoteWallet() == null)
 				return false;
 
 			System.out.println("showQRReader()");
-			
+
 			showQRReader(new QrCodeDelagate() {
 				@Override
 				public void didReadQRCode(String data) throws Exception {
@@ -214,7 +169,19 @@ public final class WalletAddressesActivity extends AbstractWalletActivity {
 				}
 			});
 			return true;
+		case R.id.addresses_menu_scan_private_key:
+			if (application.getRemoteWallet() == null)
+				return false;
+
+			showQRReader(new QrCodeDelagate() {
+				@Override
+				public void didReadQRCode(String data) throws Exception {
+					handleScanPrivateKey(data);
+				}
+			});
+			return true;
 		}
+
 
 
 		return false;
@@ -349,8 +316,10 @@ public final class WalletAddressesActivity extends AbstractWalletActivity {
 
 
 	private void reallyGenerateAddress() {
-		
-		application.addKeyToWallet(application.getRemoteWallet().generateECKey(), null, 0,
+
+		ECKey key = application.getRemoteWallet().generateECKey();
+
+		application.addKeyToWallet(key, key.toAddress(NetworkParameters.prodNet()).toString(), null, 0,
 				new AddAddressCallback() {
 
 			public void onSavedAddress(String address) {
@@ -417,7 +386,7 @@ public final class WalletAddressesActivity extends AbstractWalletActivity {
 						.show();
 			}
 		});
-		
+
 		updateFragments();
 	}
 

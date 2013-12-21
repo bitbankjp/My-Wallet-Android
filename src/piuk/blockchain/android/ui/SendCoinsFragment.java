@@ -396,7 +396,7 @@ public final class SendCoinsFragment extends Fragment
 					}
 
 					if (feePolicy != FeePolicy.FeeNever && fee.compareTo(BigInteger.ZERO) == 0) {
-						if (tx.bitcoinSerialize().length > 1024 || containsOutputLessThanThreshold) {
+						if (tx.bitcoinSerialize().length > 1000 || containsOutputLessThanThreshold) {
 							makeTransaction(FeePolicy.FeeForce);
 							return false;
 						} else if (priority < 97600000L) {
@@ -446,6 +446,10 @@ public final class SendCoinsFragment extends Fragment
 
 				public ECKey onPrivateKeyMissing(final String address) {
 
+					if (SendCoinsActivity.temporaryPrivateKeys.containsKey(address)) {
+						return SendCoinsActivity.temporaryPrivateKeys.get(address);
+					}
+					
 					handler.post(new Runnable() {
 						public void run() {
 							AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
@@ -467,8 +471,8 @@ public final class SendCoinsFragment extends Fragment
 							.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
 								public void onClick(DialogInterface dialog, int id) {
 
-									synchronized (activity.temporaryPrivateKeys) {
-										activity.temporaryPrivateKeys.notify();
+									synchronized (SendCoinsActivity.temporaryPrivateKeys) {
+										SendCoinsActivity.temporaryPrivateKeys.notify();
 									}
 
 									dialog.cancel();
@@ -482,14 +486,14 @@ public final class SendCoinsFragment extends Fragment
 					});
 
 					try {
-						synchronized (activity.temporaryPrivateKeys) {
-							activity.temporaryPrivateKeys.wait();
+						synchronized (SendCoinsActivity.temporaryPrivateKeys) {
+							SendCoinsActivity.temporaryPrivateKeys.wait();
 						}
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
 
-					return activity.temporaryPrivateKeys.get(address);
+					return SendCoinsActivity.temporaryPrivateKeys.get(address);
 				}
 			};
 
@@ -607,7 +611,9 @@ public final class SendCoinsFragment extends Fragment
 
 					BigInteger fee = null;
 
-					if (feePolicy == FeePolicy.FeeForce) {
+					if (feePolicy == FeePolicy.FeeNever) {
+						fee = BigInteger.ZERO;
+					} else if (feePolicy == FeePolicy.FeeForce) {
 						fee = baseFee;
 					} else if (sendType != null && sendType.equals(SendCoinsActivity.SendTypeCustomSend)) {
 						feePolicy = FeePolicy.FeeOnlyIfNeeded;

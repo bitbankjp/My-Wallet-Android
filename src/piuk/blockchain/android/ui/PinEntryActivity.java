@@ -8,15 +8,11 @@ Certificate fingerprint (SHA1): 	86:F2:4D:FD:34:98:BF:0C:47:94:34:D4:8C:68:A3:84
 Deep Linking: 	Disabled*/
 
 
-import java.io.DataOutputStream;
 import java.lang.ref.WeakReference;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.io.IOUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -30,14 +26,14 @@ import piuk.blockchain.android.WalletApplication;
 import piuk.blockchain.android.ui.dialogs.RekeyWalletDialog;
 import piuk.blockchain.android.ui.dialogs.RequestPasswordDialog;
 import piuk.blockchain.android.ui.dialogs.WelcomeDialog;
-
-import android.os.Bundle;
-import android.preference.PreferenceManager;
+import piuk.blockchain.android.util.WalletUtils;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences.Editor;
+import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
@@ -116,57 +112,18 @@ public class PinEntryActivity extends AbstractWalletActivity {
 	Button buttonDelete;
 	Button buttonBlank;
 
-	public static String postURL(String request, String urlParameters) throws Exception {
-
-		URL url = new URL(request);
-		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-		try {
-			connection.setDoOutput(true);
-			connection.setDoInput(true);
-			connection.setInstanceFollowRedirects(false);
-			connection.setRequestMethod("POST");
-			connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-			connection.setRequestProperty("charset", "utf-8");
-			connection.setRequestProperty("Accept", "application/json");
-			connection.setRequestProperty("Content-Length", "" + Integer.toString(urlParameters.getBytes().length));
-			connection.setUseCaches (false);
-
-
-			connection.setConnectTimeout(30000);
-			connection.setReadTimeout(30000);
-
-			connection.connect();
-
-			DataOutputStream wr = new DataOutputStream(connection.getOutputStream ());
-			wr.writeBytes(urlParameters);
-			wr.flush();
-			wr.close();
-
-			connection.setInstanceFollowRedirects(false);
-
-			if (connection.getResponseCode() == 500)
-				return IOUtils.toString(connection.getErrorStream(), "UTF-8");
-			else
-				return IOUtils.toString(connection.getInputStream(), "UTF-8");
-
-		} finally {
-			connection.disconnect();
-		}
-	}
-
 	public static JSONObject apiGetValue(String key, String pin) throws Exception {
-
 		StringBuilder args = new StringBuilder();
 
 		args.append("key=" + key);
 		args.append("&pin="+ pin);
 		args.append("&method=get");
 
-		String response = postURL(WebROOT, args.toString());
+		String response = WalletUtils.postURL(WebROOT, args.toString());
 
 		if (response == null || response.length() == 0)
 			throw new Exception("Invalid Server Response");
-
+		
 		try {
 			return (JSONObject) new JSONParser().parse(response);
 		} catch (ParseException e) {
@@ -181,8 +138,8 @@ public class PinEntryActivity extends AbstractWalletActivity {
 		args.append("&value=" + value);
 		args.append("&pin="+pin);
 		args.append("&method=put");
-
-		String response = postURL(WebROOT, args.toString());
+		
+		String response = WalletUtils.postURL(WebROOT, args.toString());
 
 		if (response == null || response.length() == 0)
 			throw new Exception("Invalid Server Response");

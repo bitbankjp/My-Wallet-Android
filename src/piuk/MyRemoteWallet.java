@@ -18,34 +18,46 @@
 
 package piuk;
 
-import android.util.Pair;
-import org.spongycastle.util.encoders.Hex;
-import com.google.bitcoin.core.*;
-import com.google.bitcoin.core.Transaction.SigHash;
-import org.apache.commons.io.IOUtils;
+import java.math.BigInteger;
+import java.net.URLEncoder;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.JSONParser;
+import org.spongycastle.util.encoders.Hex;
 
 import piuk.blockchain.android.Constants;
 import piuk.blockchain.android.ui.SendCoinsFragment;
 import piuk.blockchain.android.ui.SendCoinsFragment.FeePolicy;
 import piuk.blockchain.android.ui.SuccessCallback;
+import piuk.blockchain.android.util.WalletUtils;
+import android.util.Pair;
 
-import java.io.DataOutputStream;
-import java.math.BigInteger;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.security.MessageDigest;
-import java.util.*;
+import com.google.bitcoin.core.ECKey;
+import com.google.bitcoin.core.NetworkParameters;
+import com.google.bitcoin.core.Sha256Hash;
+import com.google.bitcoin.core.Transaction;
+import com.google.bitcoin.core.Transaction.SigHash;
+import com.google.bitcoin.core.TransactionInput;
+import com.google.bitcoin.core.TransactionOutput;
+import com.google.bitcoin.core.Utils;
+import com.google.bitcoin.core.Wallet;
 
 
 @SuppressWarnings("unchecked")
 public class MyRemoteWallet extends MyWallet {
 	private static final String WebROOT = "https://"+Constants.BLOCKCHAIN_DOMAIN+"/";
+	private static final String ApiCode = "25a6ad13-1633-4dfb-b6ee-9b91cdf0b5c3";
 
 	private String _checksum;
 	private boolean _isNew = false;
@@ -54,9 +66,17 @@ public class MyRemoteWallet extends MyWallet {
 	private BigInteger final_balance = BigInteger.ZERO;
 	private BigInteger total_received = BigInteger.ZERO;
 	private BigInteger total_sent = BigInteger.ZERO;
-	private String currencyCode;
-	private double currencyConversion;
+
+	private String language = "en";
+	private String btcCurrencyCode = "USD";
+	private String localCurrencyCode = "BTC";
+	private boolean sync_pubkeys = true;
+	private double localCurrencyConversion;
+	private double btcCurrencyConversion;
+
 	private Map<String, JSONObject> multiAddrBalancesRoot;
+	private JSONObject multiAddrRoot;
+
 	private double sharedFee;
 	private List<MyTransaction> transactions = Collections.synchronizedList(new ArrayList<MyTransaction>());
 	public byte[] extra_seed;
@@ -103,18 +123,27 @@ public class MyRemoteWallet extends MyWallet {
 	}
 
 
-	public String getCurrencyCode() {
-		return currencyCode;
+	public String getLocalCurrencyCode() {
+		return localCurrencyCode;
 	}
 
 
-	public double getCurrencyConversion() {
-		return currencyConversion;
+	public double getLocalCurrencyConversion() {
+		return localCurrencyConversion;
 	}
 
 
 	public Map<String, JSONObject> getMultiAddrBalancesRoot() {
 		return multiAddrBalancesRoot;
+	}
+	
+	public JSONObject getMultiAddrRoot() {
+		return multiAddrRoot;
+	}
+
+
+	public void setMultiAddrRoot(JSONObject multiAddrRoot) {
+		this.multiAddrRoot = multiAddrRoot;
 	}
 
 
@@ -182,6 +211,19 @@ public class MyRemoteWallet extends MyWallet {
 		this._isNew = true;
 	}
 
+
+	public MyRemoteWallet(JSONObject walletJSONObj, String password) throws Exception {
+		super(walletJSONObj.get("payload").toString(), password);
+		
+		handleWalletPayloadObj(walletJSONObj);
+		
+		this.temporyPassword = password;
+
+		this._checksum  = new String(Hex.encode(MessageDigest.getInstance("SHA-256").digest(walletJSONObj.get("payload").toString().getBytes("UTF-8"))));
+
+		this._isNew = false;
+	}
+	
 	public MyRemoteWallet( String base64Payload, String password) throws Exception {
 		super(base64Payload, password);
 
@@ -193,88 +235,30 @@ public class MyRemoteWallet extends MyWallet {
 	}
 
 	private static String fetchURL(String URL) throws Exception {
-		URL url = new URL(URL);
-
-		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-		try {
-			connection.setRequestProperty("Accept", "application/json");
-			connection.setRequestProperty("charset", "utf-8");
-			connection.setRequestMethod("GET");
-
-			connection.setConnectTimeout(30000);
-			connection.setReadTimeout(30000);
-
-			connection.setInstanceFollowRedirects(false);
-
-			connection.connect();
-
-			if (connection.getResponseCode() == 200)
-				return IOUtils.toString(connection.getInputStream(), "UTF-8");
-			else if (connection.getResponseCode() == 500 && (connection.getContentType() == null || connection.getContentType().equals("text/plain")))
-				throw new Exception("Error From Server: " +  IOUtils.toString(connection.getErrorStream(), "UTF-8"));
-			else
-				throw new Exception("Unknown response from server");
-
-		} finally {
-			connection.disconnect();
-		}
+		return WalletUtils.getURL(URL);
 	}
 
 	public static String postURL(String request, String urlParameters) throws Exception {
-
-		URL url = new URL(request);
-		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-		try {
-			connection.setDoOutput(true);
-			connection.setDoInput(true);
-			connection.setInstanceFollowRedirects(false);
-			connection.setRequestMethod("POST");
-			connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-			connection.setRequestProperty("charset", "utf-8");
-			connection.setRequestProperty("Accept", "application/json");
-			connection.setRequestProperty("Content-Length", "" + Integer.toString(urlParameters.getBytes().length));
-			connection.setUseCaches(false);
-
-			connection.setConnectTimeout(30000);
-			connection.setReadTimeout(30000);
-
-			connection.connect();
-
-			DataOutputStream wr = new DataOutputStream(connection.getOutputStream ());
-			wr.writeBytes(urlParameters);
-			wr.flush();
-			wr.close();
-
-			connection.setInstanceFollowRedirects(false);
-
-			if (connection.getResponseCode() != 200)
-				throw new Exception("Error Response " + IOUtils.toString(connection.getErrorStream(), "UTF-8"));
-			else
-				return IOUtils.toString(connection.getInputStream(), "UTF-8");
-
-		} finally {
-			connection.disconnect();
-		}
+		return WalletUtils.postURL(request, urlParameters);
 	}
 
 	@Override
-	public synchronized String addKey(ECKey key, String label) throws Exception {
-		String address = super.addKey(key, label);
+	public synchronized boolean addKey(ECKey key, String address, String label) throws Exception {
+		boolean success = super.addKey(key, address, label);
 
 		EventListeners.invokeWalletDidChange();
 
-		return address;
+		return success;
 	}
-	
-	
+
+
 	@Override
-	public synchronized String addKey(ECKey key, String label, String device_name, String device_version) throws Exception {
-		String address = super.addKey(key, label, device_name, device_version);
+	public synchronized boolean addKey(ECKey key, String address, String label, String device_name, String device_version) throws Exception {
+		boolean success = super.addKey(key, address, label, device_name, device_version);
 
 		EventListeners.invokeWalletDidChange();
 
-		return address;
+		return success;
 	}
 
 	@Override
@@ -285,7 +269,7 @@ public class MyRemoteWallet extends MyWallet {
 	}
 
 	@Override
-	public synchronized boolean addWatchOnly(String address, String source) {
+	public synchronized boolean addWatchOnly(String address, String source) throws Exception {
 		boolean success = super.addWatchOnly(address, source);
 
 		EventListeners.invokeWalletDidChange();
@@ -312,21 +296,21 @@ public class MyRemoteWallet extends MyWallet {
 			if (existing_tx.getTxIndex() == tx.getTxIndex())
 				return false;
 		}
-		
+
 		this.transactions.add(tx);
 
 		return true;
 	}
 
 	public boolean prependTransaction(MyTransaction tx) {
-		
+
 		for (MyTransaction existing_tx : transactions) {
 			if (existing_tx.getTxIndex() == tx.getTxIndex())
 				return false;
 		}
-		
+
 		this.transactions.add(0, tx);
-		
+
 		return true;
 	}
 
@@ -335,9 +319,9 @@ public class MyRemoteWallet extends MyWallet {
 		if (getFeePolicy() == -1) {
 			baseFee = Utils.toNanoCoins("0.0001");
 		} else if (getFeePolicy() == 1) {
-			baseFee = Utils.toNanoCoins("0.001");
-		} else {
 			baseFee = Utils.toNanoCoins("0.0005");
+		} else {
+			baseFee = Utils.toNanoCoins("0.0001");
 		}
 
 		return baseFee;
@@ -355,6 +339,8 @@ public class MyRemoteWallet extends MyWallet {
 
 		Map<String, Object> top = (Map<String, Object>) JSONValue.parse(response);
 
+		this.multiAddrRoot = (JSONObject) top;
+		
 		Map<String, Object> info_obj = (Map<String, Object>) top.get("info");
 
 		Map<String, Object> block_obj = (Map<String, Object>) info_obj.get("latest_block");
@@ -377,7 +363,7 @@ public class MyRemoteWallet extends MyWallet {
 
 		List<JSONObject> multiAddrBalances = (List<JSONObject>) top.get("addresses");
 
-		Map<String, JSONObject>  multiAddrBalancesRoot = new HashMap<String, JSONObject>();
+		Map<String, JSONObject> multiAddrBalancesRoot = new HashMap<String, JSONObject>();
 
 		for (JSONObject obj : multiAddrBalances) {
 			multiAddrBalancesRoot.put((String) obj.get("address"), obj);
@@ -387,6 +373,8 @@ public class MyRemoteWallet extends MyWallet {
 
 		Map<String, Object> symbol_local = (Map<String, Object>) info_obj.get("symbol_local");
 
+		boolean didUpdateCurrency = false;
+
 		if (symbol_local != null && symbol_local.containsKey("code")) {
 			String currencyCode = (String) symbol_local.get("code");
 			Double currencyConversion = (Double) symbol_local.get("conversion");
@@ -394,12 +382,31 @@ public class MyRemoteWallet extends MyWallet {
 			if (currencyConversion == null)
 				currencyConversion = 0d;
 
-			if (this.currencyCode == null || !this.currencyCode.equals(currencyCode) || this.currencyConversion != currencyConversion) {
-				this.currencyCode = currencyCode;
-				this.currencyConversion = currencyConversion;
-
-				EventListeners.invokeCurrencyDidChange();
+			if (this.localCurrencyCode == null || !this.localCurrencyCode.equals(currencyCode) || this.localCurrencyConversion != currencyConversion) {
+				this.localCurrencyCode = currencyCode;
+				this.localCurrencyConversion = currencyConversion;
+				didUpdateCurrency = true;
 			}
+		}
+
+
+		Map<String, Object> symbol_btc = (Map<String, Object>) info_obj.get("symbol_btc");
+		if (symbol_btc != null && symbol_btc.containsKey("code")) {
+			String currencyCode = (String) symbol_local.get("code");
+			Double currencyConversion = (Double) symbol_local.get("conversion");
+
+			if (currencyConversion == null)
+				currencyConversion = 0d;
+
+			if (this.btcCurrencyCode == null || !this.btcCurrencyCode.equals(currencyCode) || this.btcCurrencyConversion != currencyConversion) {
+				this.btcCurrencyCode = currencyCode;
+				this.btcCurrencyConversion = currencyConversion;
+				//didUpdateCurrency = true;
+			}
+		}
+
+		if (didUpdateCurrency) {
+			EventListeners.invokeCurrencyDidChange();
 		}
 
 		if (top.containsKey("mixer_fee")) {
@@ -452,7 +459,7 @@ public class MyRemoteWallet extends MyWallet {
 	}
 
 	public synchronized String doMultiAddr(boolean notifications) throws Exception {
-		String url =  WebROOT + "multiaddr?active=" + StringUtils.join(getActiveAddresses(), "|")+ "&archived=" + StringUtils.join(getArchivedAddresses(), "|");
+		String url =  WebROOT + "multiaddr?active=" + StringUtils.join(getActiveAddresses(), "|")+"&symbol_btc="+btcCurrencyCode+"&symbol_local="+localCurrencyCode;
 
 		String response = fetchURL(url);
 
@@ -465,7 +472,7 @@ public class MyRemoteWallet extends MyWallet {
 
 	public synchronized void doMultiAddr(boolean notifications, SuccessCallback callback) {
 		try {
-			String url =  WebROOT + "multiaddr?active=" + StringUtils.join(getActiveAddresses(), "|")+ "&archived=" + StringUtils.join(getArchivedAddresses(), "|");
+			String url =  WebROOT + "multiaddr?active=" + StringUtils.join(getActiveAddresses(), "|")+"&symbol_btc="+btcCurrencyCode+"&symbol_local="+localCurrencyCode;
 
 			String response = fetchURL(url);
 
@@ -481,9 +488,6 @@ public class MyRemoteWallet extends MyWallet {
 		}
 	}
 
-	public synchronized boolean remoteSave() throws Exception {
-		return remoteSave(null);
-	}
 
 	public interface SendProgress {
 		//Return false to cancel
@@ -573,7 +577,7 @@ public class MyRemoteWallet extends MyWallet {
 					}
 
 					Transaction tx = pair.first;
-					Long priority = pair.second;
+					Long priority = pair.second; 
 
 					//If returns false user cancelled
 					//Probably because they want to recreate the transaction with different fees
@@ -582,7 +586,20 @@ public class MyRemoteWallet extends MyWallet {
 
 					progress.onProgress("Signing Inputs");
 
-					Wallet wallet = getBitcoinJWallet();
+					Wallet wallet = new Wallet(NetworkParameters.prodNet());
+					for (TransactionInput input : tx.getInputs()) {
+
+						try {
+							byte[] scriptBytes = input.getOutpoint().getConnectedPubKeyScript();
+
+							String address = new BitcoinScript(scriptBytes).getAddress().toString();
+
+							ECKey key = getECKey(address);
+							if (key != null) {
+								wallet.addKey(key);
+							}
+						} catch (Exception e) {}
+					}
 
 					wallet.addKeys(tempKeys);
 
@@ -663,6 +680,7 @@ public class MyRemoteWallet extends MyWallet {
 
 			if (script.getOutType() == BitcoinScript.ScriptOutTypeStrange)
 				continue;
+
 
 			MyTransactionInput input = new MyTransactionInput(params, null, new byte[0], outPoint);
 
@@ -808,9 +826,11 @@ public class MyRemoteWallet extends MyWallet {
 		return (JSONObject) new JSONParser().parse(response);
 	}
 
-	public boolean updateRemoteCurrency(String currency_code) throws Exception {    
+	public boolean updateRemoteLocalCurrency(String currency_code) throws Exception {    
 		if (_isNew) return false;
 
+		localCurrencyCode = currency_code;
+		
 		StringBuilder args = new StringBuilder();
 
 		args.append("guid=" + getGUID());
@@ -860,7 +880,11 @@ public class MyRemoteWallet extends MyWallet {
 		return payload;
 	}
 
-	public synchronized boolean remoteSave(String kaptcha) throws Exception {
+	public synchronized boolean remoteSave() throws Exception {
+		return remoteSave(null);
+	}
+
+	public synchronized boolean remoteSave(String email) throws Exception {
 
 		String payload = this.getPayload();
 
@@ -868,15 +892,6 @@ public class MyRemoteWallet extends MyWallet {
 		this._checksum  = new String(Hex.encode(MessageDigest.getInstance("SHA-256").digest(payload.getBytes("UTF-8"))));
 
 		String method = _isNew ? "insert" : "update";
-
-		if (kaptcha == null && _isNew)
-		{
-			throw new Exception("Must provide a kaptcha to insert wallet");
-		}
-		else if (kaptcha == null)
-		{
-			kaptcha = "";
-		}
 
 		String urlEncodedPayload = URLEncoder.encode(payload);
 
@@ -893,8 +908,24 @@ public class MyRemoteWallet extends MyWallet {
 		args.append(payload.length());
 		args.append("&checksum=");
 		args.append(URLEncoder.encode(_checksum, "utf-8"));
-		args.append("&kaptcha=");
-		args.append(kaptcha);
+
+		if (sync_pubkeys) {
+			args.append("&active=");
+			args.append(StringUtils.join(getActiveAddresses(), "|"));
+		}
+
+		if (email != null && email.length() > 0) {
+			args.append("&email=");
+			args.append(URLEncoder.encode(email, "utf-8"));
+		}
+
+		args.append("&device=");
+		args.append("android");
+
+		if (_isNew) {
+			args.append("&api_code=");
+			args.append(ApiCode);
+		}
 
 		if (old_checksum != null && old_checksum.length() > 0)
 		{
@@ -917,8 +948,14 @@ public class MyRemoteWallet extends MyWallet {
 		return _checksum;
 	}
 
-	public synchronized String setPayload(String payload) throws Exception {
 
+	public synchronized String setPayload(JSONObject walletJSONObj) throws Exception {
+		handleWalletPayloadObj(walletJSONObj);
+		
+		return setPayload(walletJSONObj.get("payload").toString());
+	}
+	
+	public synchronized String setPayload(String payload) throws Exception {
 		MyRemoteWallet tempWallet = new MyRemoteWallet(payload, temporyPassword);
 
 		this.root = tempWallet.root;
@@ -939,9 +976,62 @@ public class MyRemoteWallet extends MyWallet {
 		private static final long serialVersionUID = 1L;
 	}
 
-	public static String getWalletPayload(String guid, String sharedKey, String checkSumString) throws Exception {
-		String payload = fetchURL(WebROOT + "wallet/wallet.aes.json?guid="+guid+"&sharedKey="+sharedKey+"&checksum="+checkSumString);
+	
+	public void handleWalletPayloadObj(JSONObject obj) {
+		Map<String, Object> symbol_local = (Map<String, Object>) obj.get("symbol_local");
 
+		boolean didUpdateCurrency = false;
+
+		if (symbol_local != null && symbol_local.containsKey("code")) {
+			String currencyCode = (String) symbol_local.get("code");
+			Double currencyConversion = (Double) symbol_local.get("conversion");
+
+			if (currencyConversion == null)
+				currencyConversion = 0d;
+
+			if (this.localCurrencyCode == null || !this.localCurrencyCode.equals(currencyCode) || this.localCurrencyConversion != currencyConversion) {
+				this.localCurrencyCode = currencyCode;
+				this.localCurrencyConversion = currencyConversion;
+				didUpdateCurrency = true;
+			}
+		}
+
+
+		Map<String, Object> symbol_btc = (Map<String, Object>) obj.get("symbol_btc");
+		if (symbol_btc != null && symbol_btc.containsKey("code")) {
+			String currencyCode = (String) symbol_local.get("code");
+			Double currencyConversion = (Double) symbol_local.get("conversion");
+
+			if (currencyConversion == null)
+				currencyConversion = 0d;
+
+			if (this.btcCurrencyCode == null || !this.btcCurrencyCode.equals(currencyCode) || this.btcCurrencyConversion != currencyConversion) {
+				this.btcCurrencyCode = currencyCode;
+				this.btcCurrencyConversion = currencyConversion;
+				//didUpdateCurrency = true;
+			}
+		}
+
+		if (didUpdateCurrency) {
+			EventListeners.invokeCurrencyDidChange();
+		}
+
+		if (obj.containsKey("sync_pubkeys")) {
+			sync_pubkeys = Boolean.valueOf(obj.get("sync_pubkeys").toString());
+		}
+	}
+	
+	public static JSONObject getWalletPayload(String guid, String sharedKey, String checkSumString) throws Exception {
+		String response = postURL(WebROOT + "wallet", "method=wallet.aes.json&guid="+guid+"&sharedKey="+sharedKey+"&checksum="+checkSumString+"&format=json");
+
+		if (response == null) {
+			throw new Exception("Error downloading wallet");
+		}
+
+		JSONObject obj = (JSONObject) new JSONParser().parse(response);
+
+		String payload = obj.get("payload").toString();
+		
 		if (payload == null) {
 			throw new Exception("Error downloading wallet");
 		}
@@ -950,17 +1040,25 @@ public class MyRemoteWallet extends MyWallet {
 			throw new NotModfiedException();
 		}
 
-		return payload;
+		return obj;
 	}
 
-	public static String getWalletPayload(String guid, String sharedKey) throws Exception {
-		String payload = fetchURL(WebROOT + "wallet/wallet.aes.json?guid="+guid+"&sharedKey="+sharedKey);
+	public static JSONObject getWalletPayload(String guid, String sharedKey) throws Exception {
+		String response = postURL(WebROOT + "wallet","method=wallet.aes.json&guid="+guid+"&sharedKey="+sharedKey+"&format=json");
+
+		if (response == null) {
+			throw new Exception("Error downloading wallet");
+		}
+
+		JSONObject obj = (JSONObject) new JSONParser().parse(response);
+
+		String payload = obj.get("payload").toString();
 
 		if (payload == null) {
 			throw new Exception("Error downloading wallet");
 		}
 
-		return payload;
+		return obj;
 	}
 
 }
