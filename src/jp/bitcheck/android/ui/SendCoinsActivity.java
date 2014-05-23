@@ -46,9 +46,9 @@ import jp.bitcheck.android.util.ActionBarFragment;
 import jp.bitcheck.android.util.WalletUtils;
 
 public final class SendCoinsActivity extends AbstractWalletActivity {
-	public static final String SendTypeQuickSend = "Quick Send";
-	public static final String SendTypeCustomSend = "Custom Send";
-	public static final String SendTypeSharedSend = "Shared Send";
+	public static final int SendTypeQuickSendIndex = 0;
+	public static final int SendTypeCustomSendIndex = 1;
+	public static final int SendTypeSharedSendIndex = 2;
 
 	public static final String INTENT_EXTRA_ADDRESS = "address";
 	private static final String INTENT_EXTRA_QUERY = "query";

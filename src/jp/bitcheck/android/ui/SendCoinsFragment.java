@@ -502,13 +502,14 @@ public final class SendCoinsFragment extends Fragment
 				if (application.getRemoteWallet() == null)
 					return;
 
-				if (sendType != null && !sendType.equals(SendCoinsActivity.SendTypeQuickSend) && application.isInP2PFallbackMode()) {
+				String[] names = getResources().getStringArray(R.array.send_types_array);
+				if (sendType != null && !sendType.equals(names[SendCoinsActivity.SendTypeQuickSendIndex]) && application.isInP2PFallbackMode()) {
 					activity.longToast(R.string.only_quick_supported);
 					return;
 				}
 
 				String[] from;
-				if (sendType != null && sendType.equals(SendCoinsActivity.SendTypeCustomSend)) {
+				if (sendType != null && sendType.equals(names[SendCoinsActivity.SendTypeCustomSendIndex])) {
 					Pair<String, String> selected = (Pair<String, String>) sendCoinsFromSpinner.getSelectedItem();
 
 					if (selected.first.equals("Any Address")) {
@@ -522,7 +523,7 @@ public final class SendCoinsFragment extends Fragment
 
 				final BigInteger amount;
 
-				if (sendType != null && sendType.equals(SendCoinsActivity.SendTypeSharedSend)) {
+				if (sendType != null && sendType.equals(names[SendCoinsActivity.SendTypeSharedSendIndex])) {
 					BigDecimal amountDecimal = BigDecimal.valueOf(amountView.getAmount().doubleValue());
 
 					//Add the fee
@@ -610,12 +611,13 @@ public final class SendCoinsFragment extends Fragment
 					BigInteger baseFee = wallet.getBaseFee();
 
 					BigInteger fee = null;
+					String[] names = getResources().getStringArray(R.array.send_types_array);
 
 					if (feePolicy == FeePolicy.FeeNever) {
 						fee = BigInteger.ZERO;
 					} else if (feePolicy == FeePolicy.FeeForce) {
 						fee = baseFee;
-					} else if (sendType != null && sendType.equals(SendCoinsActivity.SendTypeCustomSend)) {
+					} else if (sendType != null && sendType.equals(names[SendCoinsActivity.SendTypeCustomSendIndex])) {
 						feePolicy = FeePolicy.FeeOnlyIfNeeded;
 						fee = feeAmountView.getAmount();
 					} else {
@@ -625,7 +627,7 @@ public final class SendCoinsFragment extends Fragment
 					final BigInteger finalFee = fee;
 					final FeePolicy finalFeePolicy = feePolicy;
 
-					if (sendType != null && sendType.equals(SendCoinsActivity.SendTypeSharedSend)) {
+					if (sendType != null && sendType.equals(names[SendCoinsActivity.SendTypeSharedSendIndex])) {
 
 						new Thread(new Runnable() {
 							@Override
@@ -716,12 +718,13 @@ public final class SendCoinsFragment extends Fragment
 				sendCoinsFromContainer.setVisibility(View.GONE);
 				availableViewContainer.setVisibility(View.VISIBLE);
 				sendTypeDescriptionContainer.setVisibility(View.GONE);
+				String[] names = getResources().getStringArray(R.array.send_types_array);
 
-				if (type.equals(SendCoinsActivity.SendTypeCustomSend)) {
+				if (type.equals(names[SendCoinsActivity.SendTypeCustomSendIndex])) {
 					feeContainerView.setVisibility(View.VISIBLE);
 					sendCoinsFromContainer.setVisibility(View.VISIBLE);
 					availableViewContainer.setVisibility(View.GONE);
-				} else if (type.equals(SendCoinsActivity.SendTypeSharedSend)) {					
+				} else if (type.equals(names[SendCoinsActivity.SendTypeSharedSendIndex])) {					
 					sendTypeDescriptionContainer.setVisibility(View.VISIBLE);
 					sendTypeDescription.setText(getString(R.string.shared_send_description, wallet.getSharedFee()+"%"));
 					sendTypeDescriptionIcon.setImageResource(R.drawable.ic_icon_shared);
