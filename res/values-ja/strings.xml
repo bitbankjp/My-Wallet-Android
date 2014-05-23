@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Blockchain</string>
+    <string name="app_name">Blockchain日本語版</string>
+    <string name="blockchain_name">Blockchain</string>
     <string name="menu_account_settings">アカウント設定</string>
     <string name="menu_scan_private_key">プライベートキーのスキャン</string>
     <string name="menu_addresses_generate_new">新しいアドレスの生成</string>
@@ -135,7 +136,7 @@
     <string name="send_coins_add_address_dialog_button_add">アドレス追加</string>
     <string name="send_coins_error_msg">送金に問題が発生しました!</string>
     <string name="send_coins_success_msg">BTC %s 送金完了!</string>
-    <string name="request_coins_activity_title">ビットコインをリクエスト</string>
+    <string name="request_coins_activity_title">送金要求</string>
     <string name="request_coins_fragment_amount_label">総額のリクエスト(オプション)</string>
     <string name="request_coins_fragment_qr_label">このQRコードを送金者がスキャンしてくだしさい:</string>
     <string name="request_coins_fragment_nfc_enabled">もしくはNFCデバイスでタッチ。</string>

@@ -122,7 +122,7 @@ public final class WalletActivity extends AbstractWalletActivity {
 
 		final ActionBarFragment actionBar = getActionBarFragment();
 
-		actionBar.setPrimaryTitle(R.string.app_name);
+		actionBar.setPrimaryTitle(R.string.blockchain_name);
 
 		frameLayoutContainer = (FrameLayout)this.findViewById(R.id.frame_layout_container);
 
