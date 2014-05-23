@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="piuk.blockchain.android"
+    package="jp.bitcheck.android"
     android:installLocation="preferExternal"
-    android:versionCode="131"
-    android:versionName="3.63" >
+    android:versionCode="1"
+    android:versionName="1.0.0" >
 
     <uses-sdk
         android:minSdkVersion="9"
@@ -30,10 +30,10 @@
            where PACKAGE is the application's package name.
     -->
     <permission
-        android:name="piuk.blockchain.android.permission.C2D_MESSAGE"
+        android:name="jp.bitcheck.android.permission.C2D_MESSAGE"
         android:protectionLevel="signature" />
 
-    <uses-permission android:name="piuk.blockchain.android.permission.C2D_MESSAGE" />
+    <uses-permission android:name="jp.bitcheck.android.permission.C2D_MESSAGE" />
 
     <!-- This app has permission to register and receive data message. -->
     <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
@@ -45,7 +45,7 @@
         android:smallScreens="true" />
 
     <application
-        android:name="piuk.blockchain.android.WalletApplication"
+        android:name="jp.bitcheck.android.WalletApplication"
         android:allowBackup="true"
         android:icon="@drawable/app_icon"
         android:label="@string/app_name" >
@@ -67,7 +67,7 @@
                 <!-- Receives the registration id. -->
                 <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
 
-                <category android:name="piuk.blockchain.android" />
+                <category android:name="jp.bitcheck.android" />
             </intent-filter>
         </receiver>
 
@@ -78,10 +78,10 @@
           By default, it must be named .GCMIntentService, unless the
           application uses a custom BroadcastReceiver that redefines its name.
         -->
-        <service android:name="piuk.blockchain.android.GCMIntentService" />
+        <service android:name="jp.bitcheck.android.GCMIntentService" />
 
         <activity
-            android:name="piuk.blockchain.android.ui.WalletActivity"
+            android:name="jp.bitcheck.android.ui.WalletActivity"
             android:configChanges="orientation|keyboard|keyboardHidden"
             android:launchMode="singleTask"
             android:screenOrientation="nosensor"
@@ -93,7 +93,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="piuk.blockchain.android.ui.SendCoinsActivity"
+            android:name="jp.bitcheck.android.ui.SendCoinsActivity"
             android:configChanges="orientation|keyboard|keyboardHidden"
             android:launchMode="singleTask"
             android:screenOrientation="nosensor"
@@ -113,33 +113,33 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="piuk.blockchain.android.ui.PairWalletActivity"
+            android:name="jp.bitcheck.android.ui.PairWalletActivity"
             android:configChanges="orientation|keyboard|keyboardHidden"
             android:launchMode="singleTask"
             android:screenOrientation="nosensor"
             android:theme="@style/Theme.HoloLight" >
         </activity>
         <activity
-            android:name="piuk.blockchain.android.ui.RequestCoinsActivity"
+            android:name="jp.bitcheck.android.ui.RequestCoinsActivity"
             android:configChanges="orientation|keyboard|keyboardHidden"
             android:launchMode="singleTask"
             android:screenOrientation="behind"
             android:theme="@style/Theme.MyLight" />
         <activity
-            android:name="piuk.blockchain.android.ui.ExchangeRatesActivity"
+            android:name="jp.bitcheck.android.ui.ExchangeRatesActivity"
             android:configChanges="orientation|keyboard|keyboardHidden"
             android:launchMode="singleTask"
             android:screenOrientation="behind"
             android:theme="@style/Theme.MyLight" >
         </activity>
         <activity
-            android:name="piuk.blockchain.android.ui.WalletAddressesActivity"
+            android:name="jp.bitcheck.android.ui.WalletAddressesActivity"
             android:configChanges="orientation|keyboard|keyboardHidden"
             android:launchMode="singleTask"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.HoloLight" />
         <activity
-            android:name="piuk.blockchain.android.ui.PinEntryActivity"
+            android:name="jp.bitcheck.android.ui.PinEntryActivity"
             android:launchMode="singleTask"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.MyPIN" >
@@ -150,20 +150,20 @@
             android:screenOrientation="landscape" />
 
         <provider
-            android:name="piuk.blockchain.android.AddressBookProvider"
-            android:authorities="piuk.blockchain.android.address_book"
+            android:name="jp.bitcheck.android.AddressBookProvider"
+            android:authorities="jp.bitcheck.android.address_book"
             android:exported="false" />
         <provider
-            android:name="piuk.blockchain.android.ExchangeRatesProvider"
-            android:authorities="piuk.blockchain.android.exchange_rates"
+            android:name="jp.bitcheck.android.ExchangeRatesProvider"
+            android:authorities="jp.bitcheck.android.exchange_rates"
             android:exported="false" />
 
         <service
-            android:name="piuk.blockchain.android.service.BlockchainServiceImpl"
+            android:name="jp.bitcheck.android.service.BlockchainServiceImpl"
             android:exported="false" />
 
         <receiver
-            android:name="piuk.blockchain.android.WalletBalanceWidgetProvider"
+            android:name="jp.bitcheck.android.WalletBalanceWidgetProvider"
             android:label="Blockchain Balance" >
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -175,7 +175,7 @@
             </meta-data>
         </receiver>
 
-        <service android:name="piuk.blockchain.android.service.WebsocketService" />
+        <service android:name="jp.bitcheck.android.service.WebsocketService" />
     </application>
 
 </manifest>

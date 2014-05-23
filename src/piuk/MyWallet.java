@@ -47,7 +47,7 @@ import org.spongycastle.crypto.paddings.PaddedBufferedBlockCipher;
 import org.spongycastle.crypto.params.KeyParameter;
 import org.spongycastle.crypto.params.ParametersWithIV;
 
-import piuk.blockchain.android.util.LinuxSecureRandom;
+import jp.bitcheck.android.util.LinuxSecureRandom;
 
 public class MyWallet {
 	private static final int AESBlockSize = 4;

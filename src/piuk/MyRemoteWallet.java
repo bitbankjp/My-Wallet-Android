@@ -36,11 +36,11 @@ import org.json.simple.JSONValue;
 import org.json.simple.parser.JSONParser;
 import org.spongycastle.util.encoders.Hex;
 
-import piuk.blockchain.android.Constants;
-import piuk.blockchain.android.ui.SendCoinsFragment;
-import piuk.blockchain.android.ui.SendCoinsFragment.FeePolicy;
-import piuk.blockchain.android.ui.SuccessCallback;
-import piuk.blockchain.android.util.WalletUtils;
+import jp.bitcheck.android.Constants;
+import jp.bitcheck.android.ui.SendCoinsFragment;
+import jp.bitcheck.android.ui.SendCoinsFragment.FeePolicy;
+import jp.bitcheck.android.ui.SuccessCallback;
+import jp.bitcheck.android.util.WalletUtils;
 import android.util.Pair;
 
 import com.google.bitcoin.core.ECKey;
