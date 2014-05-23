@@ -22,7 +22,7 @@ import java.math.BigInteger;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import piuk.blockchain.android.Constants;
+import jp.bitcheck.android.Constants;
 
 import org.spongycastle.util.encoders.Hex;
 import com.google.bitcoin.core.Address;
