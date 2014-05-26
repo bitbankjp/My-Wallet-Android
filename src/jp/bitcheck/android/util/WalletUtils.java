@@ -17,6 +17,31 @@
 
 package jp.bitcheck.android.util;
 
+import java.io.DataOutputStream;
+import java.math.BigInteger;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+
+import jp.bitcheck.android.Constants;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.ArrayUtils;
+import org.spongycastle.asn1.sec.SECNamedCurves;
+import org.spongycastle.crypto.generators.SCrypt;
+import org.spongycastle.util.encoders.Hex;
+
+import piuk.Hash;
+import piuk.MyWallet;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.text.Editable;
@@ -37,31 +62,6 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
-
-import piuk.Hash;
-import piuk.MyWallet;
-import jp.bitcheck.android.Constants;
-
-import java.io.DataOutputStream;
-import java.math.BigInteger;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.Hashtable;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import javax.crypto.Cipher;
-import javax.crypto.spec.SecretKeySpec;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.ArrayUtils;
-import org.spongycastle.asn1.sec.SECNamedCurves;
-import org.spongycastle.crypto.generators.SCrypt;
-import org.spongycastle.util.encoders.Hex;
 
 /**
  * @author Andreas Schildbach

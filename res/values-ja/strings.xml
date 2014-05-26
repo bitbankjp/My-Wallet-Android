@@ -138,7 +138,7 @@
     <string name="send_coins_success_msg">BTC %s 送金完了!</string>
     <string name="request_coins_activity_title">送金要求</string>
     <string name="request_coins_fragment_amount_label">総額のリクエスト(オプション)</string>
-    <string name="request_coins_fragment_qr_label">このQRコードを送金者がスキャンしてくだしさい:</string>
+    <string name="request_coins_fragment_qr_label">このQRコードを送金者がスキャンしてください:</string>
     <string name="request_coins_fragment_nfc_enabled">もしくはNFCデバイスでタッチ。</string>
     <string name="request_coins_clipboard_msg">ビットコインのリクエストはクリップボードにコピーされました</string>
     <string name="request_coins_share_dialog_title">ビットコインの共有リクエスト…</string>
